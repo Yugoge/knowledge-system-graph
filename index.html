@@ -1,0 +1,4159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Analytics Dashboard - Accessible Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Skip to main content link for accessibility */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #1a1a1a;
+            color: white;
+            padding: 8px;
+            text-decoration: none;
+            z-index: 100;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafbfc;
+            color: #1a1a1a;
+            padding: 0;
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        /* Loading indicator */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            z-index: 1000;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            font-size: 14px;
+        }
+
+        .loading.active {
+            transform: translateY(0);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Search functionality */
+        .search-container {
+            background: #ffffff;
+            padding: 24px 32px;
+            margin-bottom: 24px;
+            border-radius: 2px;
+            border: 1px solid #e8e9ea;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 40px;
+            border: 1px solid #e8e9ea;
+            border-radius: 2px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            outline: 2px solid #1a1a1a;
+            outline-offset: 2px;
+            border-color: #1a1a1a;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e8e9ea;
+            border-top: none;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            z-index: 100;
+        }
+
+        .search-results.active {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover,
+        .search-result-item:focus {
+            background: #f3f4f6;
+            outline: none;
+        }
+
+        .search-result-item:focus {
+            outline: 2px solid #1a1a1a;
+            outline-offset: -2px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 48px 32px;
+        }
+
+        .header {
+            background: #ffffff;
+            padding: 48px 56px;
+            border-radius: 2px;
+            margin-bottom: 32px;
+            border: 1px solid #e8e9ea;
+        }
+
+        .header h1 {
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -0.5px;
+        }
+
+        .header .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: #ffffff;
+            padding: 32px;
+            border-radius: 2px;
+            border: 1px solid #e8e9ea;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .stat-card:hover {
+            border-color: #d1d5db;
+        }
+
+        /* Focus indicator for keyboard navigation */
+        .stat-card:focus,
+        .chart-card:focus {
+            outline: 3px solid #1a1a1a;
+            outline-offset: 4px;
+        }
+
+        .stat-card h3 {
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-card h3 i {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .stat-card .value {
+            font-size: 40px;
+            font-weight: 300;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            letter-spacing: -1px;
+        }
+
+        .stat-card .label {
+            color: #9ca3af;
+            font-size: 13px;
+            font-weight: 400;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 600px), 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .chart-card {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 2px;
+            border: 1px solid #e8e9ea;
+            position: relative;
+        }
+
+        .chart-card h2 {
+            color: #1a1a1a;
+            margin-bottom: 32px;
+            font-size: 16px;
+            font-weight: 400;
+            letter-spacing: -0.2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-card h2 i {
+            font-size: 16px;
+            color: #6b7280;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 320px;
+        }
+
+        .chart-container.large {
+            height: 400px;
+        }
+
+        /* Zoom controls for mobile */
+        .zoom-controls {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: none;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .zoom-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #e8e9ea;
+            background: white;
+            border-radius: 2px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .zoom-btn:focus {
+            outline: 2px solid #1a1a1a;
+            outline-offset: 2px;
+        }
+
+        .footer {
+            background: transparent;
+            padding: 32px;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 80px 40px;
+            color: #9ca3af;
+            background: #ffffff;
+            border: 1px solid #e8e9ea;
+            border-radius: 2px;
+        }
+
+        /* ARIA Live Regions */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Safari-specific fixes */
+        @supports (-webkit-appearance: none) {
+            .chart-container {
+                transform: translateZ(0);
+                -webkit-transform: translateZ(0);
+            }
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 24px 16px;
+            }
+
+            .header {
+                padding: 32px 24px;
+                margin-bottom: 24px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+
+            .stat-card {
+                padding: 24px;
+            }
+
+            .stat-card .value {
+                font-size: 32px;
+            }
+
+            .chart-card {
+                padding: 24px;
+                overflow-x: auto;
+            }
+
+            .chart-card h2 {
+                margin-bottom: 24px;
+                font-size: 14px;
+            }
+
+            .chart-container {
+                height: 280px;
+                min-width: 320px;
+            }
+
+            .chart-container.large {
+                height: 320px;
+            }
+
+            .zoom-controls {
+                display: flex;
+            }
+
+            .search-container {
+                padding: 16px;
+            }
+        }
+
+        /* Small mobile fixes (320px) */
+        @media (max-width: 360px) {
+            .container {
+                padding: 16px 8px;
+            }
+
+            .chart-container {
+                min-width: 300px;
+            }
+
+            .stat-card .value {
+                font-size: 28px;
+            }
+        }
+
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .stat-card,
+            .chart-card {
+                border: 2px solid #1a1a1a;
+            }
+
+            .search-input:focus {
+                outline-width: 3px;
+            }
+        }
+
+        /* Animation performance optimization */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Performance monitor */
+        .performance-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 2px;
+            border: 1px solid #e8e9ea;
+            font-size: 11px;
+            color: #6b7280;
+            display: none;
+        }
+
+        .performance-indicator.warning {
+            border-color: #f59e0b;
+            color: #f59e0b;
+        }
+
+        .performance-indicator.error {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+
+    <!-- Loading indicator -->
+    <div class="loading" id="loadingIndicator" role="status" aria-live="polite">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <span id="loadingText">Loading analytics data...</span>
+    </div>
+
+    <div class="container" id="main" role="main">
+        <div class="header">
+            <h1>Learning Analytics Dashboard</h1>
+            <p class="subtitle" id="lastUpdated">Last updated: Loading...</p>
+        </div>
+
+        <!-- Search functionality -->
+        <div class="search-container" role="search">
+            <label for="searchInput" class="sr-only">Search analytics data</label>
+            <div class="search-wrapper">
+                <i class="fa-solid fa-search search-icon" aria-hidden="true"></i>
+                <input
+                    type="search"
+                    id="searchInput"
+                    class="search-input"
+                    placeholder="Search for domains, metrics, or concepts..."
+                    aria-label="Search analytics data"
+                    aria-describedby="searchHelp"
+                    aria-autocomplete="list"
+                    aria-controls="searchResults"
+                >
+                <span id="searchHelp" class="sr-only">Type to search through analytics data. Use arrow keys to navigate results.</span>
+                <div id="searchResults" class="search-results" role="listbox" aria-label="Search results"></div>
+            </div>
+        </div>
+
+        <!-- ARIA live region for announcements -->
+        <div class="sr-only" role="status" aria-live="polite" aria-atomic="true" id="announcements"></div>
+
+        <div class="stats-grid" role="region" aria-label="Summary Statistics">
+            <div class="stat-card" tabindex="0" role="article" aria-label="Current Streak Statistics">
+                <h3><i class="fa-solid fa-fire" aria-hidden="true"></i>Current Streak</h3>
+                <div class="value" id="streakValue" aria-live="polite">-</div>
+                <div class="label">consecutive days</div>
+            </div>
+            <div class="stat-card" tabindex="0" role="article" aria-label="Total Concepts Statistics">
+                <h3><i class="fa-solid fa-brain" aria-hidden="true"></i>Total Concepts</h3>
+                <div class="value" id="conceptsValue" aria-live="polite">-</div>
+                <div class="label">tracked concepts</div>
+            </div>
+            <div class="stat-card" tabindex="0" role="article" aria-label="Review Adherence Statistics">
+                <h3><i class="fa-solid fa-check-circle" aria-hidden="true"></i>Review Adherence</h3>
+                <div class="value" id="adherenceValue" aria-live="polite">-</div>
+                <div class="label">on-time reviews</div>
+            </div>
+            <div class="stat-card" tabindex="0" role="article" aria-label="Average Velocity Statistics">
+                <h3><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>Avg Velocity</h3>
+                <div class="value" id="velocityValue" aria-live="polite">-</div>
+                <div class="label">concepts/week</div>
+            </div>
+        </div>
+
+        <div class="charts-grid" role="region" aria-label="Analytics Charts">
+            <div class="chart-card" tabindex="0" role="article" aria-label="Retention Curves Chart">
+                <h2><i class="fa-solid fa-chart-line" aria-hidden="true"></i>Retention Curves</h2>
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomChart('retentionChart', 1.2)" aria-label="Zoom in retention chart">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button class="zoom-btn" onclick="zoomChart('retentionChart', 0.8)" aria-label="Zoom out retention chart">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="retentionChart" role="img" aria-label="Retention curves by domain"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card" tabindex="0" role="article" aria-label="Learning Velocity Chart">
+                <h2><i class="fa-solid fa-rocket" aria-hidden="true"></i>Learning Velocity</h2>
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomChart('velocityChart', 1.2)" aria-label="Zoom in velocity chart">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button class="zoom-btn" onclick="zoomChart('velocityChart', 0.8)" aria-label="Zoom out velocity chart">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="velocityChart" role="img" aria-label="Learning velocity by domain"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card" tabindex="0" role="article" aria-label="Review Adherence Chart">
+                <h2><i class="fa-solid fa-bullseye" aria-hidden="true"></i>Review Adherence</h2>
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomChart('adherenceChart', 1.2)" aria-label="Zoom in adherence chart">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button class="zoom-btn" onclick="zoomChart('adherenceChart', 0.8)" aria-label="Zoom out adherence chart">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="adherenceChart" role="img" aria-label="Review adherence by domain"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card" tabindex="0" role="article" aria-label="Time Distribution Chart">
+                <h2><i class="fa-solid fa-clock" aria-hidden="true"></i>Time Distribution</h2>
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomChart('timeChart', 1.2)" aria-label="Zoom in time chart">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button class="zoom-btn" onclick="zoomChart('timeChart', 0.8)" aria-label="Zoom out time chart">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="timeChart" role="img" aria-label="Time distribution by domain"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-card" style="margin-bottom: 32px;" tabindex="0" role="article" aria-label="Activity Heatmap">
+            <h2><i class="fa-solid fa-calendar-days" aria-hidden="true"></i>Activity Heatmap (30 days)</h2>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomChart('heatmapChart', 1.2)" aria-label="Zoom in heatmap">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+                <button class="zoom-btn" onclick="zoomChart('heatmapChart', 0.8)" aria-label="Zoom out heatmap">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+            </div>
+            <div class="chart-container large">
+                <canvas id="heatmapChart" role="img" aria-label="30-day activity heatmap"></canvas>
+            </div>
+        </div>
+
+        <div class="footer" role="contentinfo">
+            <p>Generated by Knowledge System - Analytics Dashboard v2.0 (Accessible Edition)</p>
+        </div>
+    </div>
+
+    <!-- Performance indicator -->
+    <div class="performance-indicator" id="performanceIndicator" role="status" aria-live="polite">
+        <span id="performanceText">FPS: 60 | Memory: 0MB</span>
+    </div>
+
+    <script>
+        'use strict';
+
+        const analyticsData = {
+  "metadata": {
+    "generated_at": "2026-08-31T12:34:56.367620",
+    "period_days": 30,
+    "classification": "ISCED"
+  },
+  "summary": {
+    "total_concepts": 1031,
+    "total_domains": 15,
+    "review_adherence": 0.0,
+    "avg_velocity": 72.3,
+    "total_hours": 7.1
+  },
+  "retention_by_domain": {
+    "0533-physics": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.363288"
+        },
+        {
+          "day": 1,
+          "retention": 72.5,
+          "date": "2026-09-01T12:34:56.363313"
+        },
+        {
+          "day": 2,
+          "retention": 52.5,
+          "date": "2026-09-02T12:34:56.363318"
+        },
+        {
+          "day": 3,
+          "retention": 38.1,
+          "date": "2026-09-03T12:34:56.363320"
+        },
+        {
+          "day": 4,
+          "retention": 27.6,
+          "date": "2026-09-04T12:34:56.363322"
+        },
+        {
+          "day": 5,
+          "retention": 20.0,
+          "date": "2026-09-05T12:34:56.363324"
+        },
+        {
+          "day": 6,
+          "retention": 14.5,
+          "date": "2026-09-06T12:34:56.363326"
+        },
+        {
+          "day": 7,
+          "retention": 10.5,
+          "date": "2026-09-07T12:34:56.363328"
+        },
+        {
+          "day": 8,
+          "retention": 7.6,
+          "date": "2026-09-08T12:34:56.363330"
+        },
+        {
+          "day": 9,
+          "retention": 5.5,
+          "date": "2026-09-09T12:34:56.363332"
+        },
+        {
+          "day": 10,
+          "retention": 4.0,
+          "date": "2026-09-10T12:34:56.363334"
+        },
+        {
+          "day": 11,
+          "retention": 2.9,
+          "date": "2026-09-11T12:34:56.363336"
+        },
+        {
+          "day": 12,
+          "retention": 2.1,
+          "date": "2026-09-12T12:34:56.363338"
+        },
+        {
+          "day": 13,
+          "retention": 1.5,
+          "date": "2026-09-13T12:34:56.363340"
+        },
+        {
+          "day": 14,
+          "retention": 1.1,
+          "date": "2026-09-14T12:34:56.363341"
+        },
+        {
+          "day": 15,
+          "retention": 0.8,
+          "date": "2026-09-15T12:34:56.363343"
+        },
+        {
+          "day": 16,
+          "retention": 0.6,
+          "date": "2026-09-16T12:34:56.363345"
+        },
+        {
+          "day": 17,
+          "retention": 0.4,
+          "date": "2026-09-17T12:34:56.363346"
+        },
+        {
+          "day": 18,
+          "retention": 0.3,
+          "date": "2026-09-18T12:34:56.363348"
+        },
+        {
+          "day": 19,
+          "retention": 0.2,
+          "date": "2026-09-19T12:34:56.363350"
+        },
+        {
+          "day": 20,
+          "retention": 0.2,
+          "date": "2026-09-20T12:34:56.363351"
+        },
+        {
+          "day": 21,
+          "retention": 0.1,
+          "date": "2026-09-21T12:34:56.363353"
+        },
+        {
+          "day": 22,
+          "retention": 0.1,
+          "date": "2026-09-22T12:34:56.363355"
+        },
+        {
+          "day": 23,
+          "retention": 0.1,
+          "date": "2026-09-23T12:34:56.363356"
+        },
+        {
+          "day": 24,
+          "retention": 0.0,
+          "date": "2026-09-24T12:34:56.363358"
+        },
+        {
+          "day": 25,
+          "retention": 0.0,
+          "date": "2026-09-25T12:34:56.363360"
+        },
+        {
+          "day": 26,
+          "retention": 0.0,
+          "date": "2026-09-26T12:34:56.363362"
+        },
+        {
+          "day": 27,
+          "retention": 0.0,
+          "date": "2026-09-27T12:34:56.363364"
+        },
+        {
+          "day": 28,
+          "retention": 0.0,
+          "date": "2026-09-28T12:34:56.363368"
+        },
+        {
+          "day": 29,
+          "retention": 0.0,
+          "date": "2026-09-29T12:34:56.363370"
+        },
+        {
+          "day": 30,
+          "retention": 0.0,
+          "date": "2026-09-30T12:34:56.363372"
+        }
+      ],
+      "conceptCount": 1,
+      "currentRetention": 100.0,
+      "domainName": "Physics (0533)"
+    },
+    "uncategorized": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.363506"
+        },
+        {
+          "day": 1,
+          "retention": 72.5,
+          "date": "2026-09-01T12:34:56.363511"
+        },
+        {
+          "day": 2,
+          "retention": 52.5,
+          "date": "2026-09-02T12:34:56.363514"
+        },
+        {
+          "day": 3,
+          "retention": 38.1,
+          "date": "2026-09-03T12:34:56.363517"
+        },
+        {
+          "day": 4,
+          "retention": 27.6,
+          "date": "2026-09-04T12:34:56.363519"
+        },
+        {
+          "day": 5,
+          "retention": 20.0,
+          "date": "2026-09-05T12:34:56.363521"
+        },
+        {
+          "day": 6,
+          "retention": 14.5,
+          "date": "2026-09-06T12:34:56.363524"
+        },
+        {
+          "day": 7,
+          "retention": 10.5,
+          "date": "2026-09-07T12:34:56.363526"
+        },
+        {
+          "day": 8,
+          "retention": 7.6,
+          "date": "2026-09-08T12:34:56.363528"
+        },
+        {
+          "day": 9,
+          "retention": 5.5,
+          "date": "2026-09-09T12:34:56.363530"
+        },
+        {
+          "day": 10,
+          "retention": 4.0,
+          "date": "2026-09-10T12:34:56.363533"
+        },
+        {
+          "day": 11,
+          "retention": 2.9,
+          "date": "2026-09-11T12:34:56.363535"
+        },
+        {
+          "day": 12,
+          "retention": 2.1,
+          "date": "2026-09-12T12:34:56.363537"
+        },
+        {
+          "day": 13,
+          "retention": 1.5,
+          "date": "2026-09-13T12:34:56.363540"
+        },
+        {
+          "day": 14,
+          "retention": 1.1,
+          "date": "2026-09-14T12:34:56.363542"
+        },
+        {
+          "day": 15,
+          "retention": 0.8,
+          "date": "2026-09-15T12:34:56.363544"
+        },
+        {
+          "day": 16,
+          "retention": 0.6,
+          "date": "2026-09-16T12:34:56.363546"
+        },
+        {
+          "day": 17,
+          "retention": 0.4,
+          "date": "2026-09-17T12:34:56.363549"
+        },
+        {
+          "day": 18,
+          "retention": 0.3,
+          "date": "2026-09-18T12:34:56.363551"
+        },
+        {
+          "day": 19,
+          "retention": 0.2,
+          "date": "2026-09-19T12:34:56.363553"
+        },
+        {
+          "day": 20,
+          "retention": 0.2,
+          "date": "2026-09-20T12:34:56.363555"
+        },
+        {
+          "day": 21,
+          "retention": 0.1,
+          "date": "2026-09-21T12:34:56.363557"
+        },
+        {
+          "day": 22,
+          "retention": 0.1,
+          "date": "2026-09-22T12:34:56.363560"
+        },
+        {
+          "day": 23,
+          "retention": 0.1,
+          "date": "2026-09-23T12:34:56.363562"
+        },
+        {
+          "day": 24,
+          "retention": 0.0,
+          "date": "2026-09-24T12:34:56.363564"
+        },
+        {
+          "day": 25,
+          "retention": 0.0,
+          "date": "2026-09-25T12:34:56.363566"
+        },
+        {
+          "day": 26,
+          "retention": 0.0,
+          "date": "2026-09-26T12:34:56.363568"
+        },
+        {
+          "day": 27,
+          "retention": 0.0,
+          "date": "2026-09-27T12:34:56.363571"
+        },
+        {
+          "day": 28,
+          "retention": 0.0,
+          "date": "2026-09-28T12:34:56.363573"
+        },
+        {
+          "day": 29,
+          "retention": 0.0,
+          "date": "2026-09-29T12:34:56.363578"
+        },
+        {
+          "day": 30,
+          "retention": 0.0,
+          "date": "2026-09-30T12:34:56.363580"
+        }
+      ],
+      "conceptCount": 15,
+      "currentRetention": 100.0,
+      "domainName": "Uncategorized"
+    },
+    "0613-software-and-applications-development-and-analysis": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.363584"
+        },
+        {
+          "day": 1,
+          "retention": 65.7,
+          "date": "2026-09-01T12:34:56.363586"
+        },
+        {
+          "day": 2,
+          "retention": 46.7,
+          "date": "2026-09-02T12:34:56.363588"
+        },
+        {
+          "day": 3,
+          "retention": 35.5,
+          "date": "2026-09-03T12:34:56.363590"
+        },
+        {
+          "day": 4,
+          "retention": 28.4,
+          "date": "2026-09-04T12:34:56.363592"
+        },
+        {
+          "day": 5,
+          "retention": 23.6,
+          "date": "2026-09-05T12:34:56.363594"
+        },
+        {
+          "day": 6,
+          "retention": 20.2,
+          "date": "2026-09-06T12:34:56.363595"
+        },
+        {
+          "day": 7,
+          "retention": 17.6,
+          "date": "2026-09-07T12:34:56.363597"
+        },
+        {
+          "day": 8,
+          "retention": 15.6,
+          "date": "2026-09-08T12:34:56.363599"
+        },
+        {
+          "day": 9,
+          "retention": 14.0,
+          "date": "2026-09-09T12:34:56.363601"
+        },
+        {
+          "day": 10,
+          "retention": 12.7,
+          "date": "2026-09-10T12:34:56.363605"
+        },
+        {
+          "day": 11,
+          "retention": 11.6,
+          "date": "2026-09-11T12:34:56.363607"
+        },
+        {
+          "day": 12,
+          "retention": 10.7,
+          "date": "2026-09-12T12:34:56.363612"
+        },
+        {
+          "day": 13,
+          "retention": 9.9,
+          "date": "2026-09-13T12:34:56.363614"
+        },
+        {
+          "day": 14,
+          "retention": 9.2,
+          "date": "2026-09-14T12:34:56.363616"
+        },
+        {
+          "day": 15,
+          "retention": 8.6,
+          "date": "2026-09-15T12:34:56.363617"
+        },
+        {
+          "day": 16,
+          "retention": 8.0,
+          "date": "2026-09-16T12:34:56.363619"
+        },
+        {
+          "day": 17,
+          "retention": 7.5,
+          "date": "2026-09-17T12:34:56.363621"
+        },
+        {
+          "day": 18,
+          "retention": 7.1,
+          "date": "2026-09-18T12:34:56.363623"
+        },
+        {
+          "day": 19,
+          "retention": 6.6,
+          "date": "2026-09-19T12:34:56.363625"
+        },
+        {
+          "day": 20,
+          "retention": 6.2,
+          "date": "2026-09-20T12:34:56.363627"
+        },
+        {
+          "day": 21,
+          "retention": 5.9,
+          "date": "2026-09-21T12:34:56.363628"
+        },
+        {
+          "day": 22,
+          "retention": 5.5,
+          "date": "2026-09-22T12:34:56.363630"
+        },
+        {
+          "day": 23,
+          "retention": 5.2,
+          "date": "2026-09-23T12:34:56.363632"
+        },
+        {
+          "day": 24,
+          "retention": 4.9,
+          "date": "2026-09-24T12:34:56.363634"
+        },
+        {
+          "day": 25,
+          "retention": 4.6,
+          "date": "2026-09-25T12:34:56.363636"
+        },
+        {
+          "day": 26,
+          "retention": 4.3,
+          "date": "2026-09-26T12:34:56.363637"
+        },
+        {
+          "day": 27,
+          "retention": 4.1,
+          "date": "2026-09-27T12:34:56.363639"
+        },
+        {
+          "day": 28,
+          "retention": 3.9,
+          "date": "2026-09-28T12:34:56.363641"
+        },
+        {
+          "day": 29,
+          "retention": 3.6,
+          "date": "2026-09-29T12:34:56.363643"
+        },
+        {
+          "day": 30,
+          "retention": 3.4,
+          "date": "2026-09-30T12:34:56.363645"
+        }
+      ],
+      "conceptCount": 5,
+      "currentRetention": 100.0,
+      "domainName": "Software And Applications Development And Analysis (0613)"
+    },
+    "0421-law": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.363655"
+        },
+        {
+          "day": 1,
+          "retention": 76.1,
+          "date": "2026-09-01T12:34:56.363657"
+        },
+        {
+          "day": 2,
+          "retention": 58.6,
+          "date": "2026-09-02T12:34:56.363659"
+        },
+        {
+          "day": 3,
+          "retention": 45.7,
+          "date": "2026-09-03T12:34:56.363661"
+        },
+        {
+          "day": 4,
+          "retention": 36.2,
+          "date": "2026-09-04T12:34:56.363663"
+        },
+        {
+          "day": 5,
+          "retention": 29.1,
+          "date": "2026-09-05T12:34:56.363665"
+        },
+        {
+          "day": 6,
+          "retention": 23.8,
+          "date": "2026-09-06T12:34:56.363667"
+        },
+        {
+          "day": 7,
+          "retention": 19.8,
+          "date": "2026-09-07T12:34:56.363669"
+        },
+        {
+          "day": 8,
+          "retention": 16.7,
+          "date": "2026-09-08T12:34:56.363671"
+        },
+        {
+          "day": 9,
+          "retention": 14.4,
+          "date": "2026-09-09T12:34:56.363673"
+        },
+        {
+          "day": 10,
+          "retention": 12.6,
+          "date": "2026-09-10T12:34:56.363675"
+        },
+        {
+          "day": 11,
+          "retention": 11.1,
+          "date": "2026-09-11T12:34:56.363677"
+        },
+        {
+          "day": 12,
+          "retention": 10.0,
+          "date": "2026-09-12T12:34:56.363679"
+        },
+        {
+          "day": 13,
+          "retention": 9.0,
+          "date": "2026-09-13T12:34:56.363697"
+        },
+        {
+          "day": 14,
+          "retention": 8.2,
+          "date": "2026-09-14T12:34:56.363699"
+        },
+        {
+          "day": 15,
+          "retention": 7.6,
+          "date": "2026-09-15T12:34:56.363700"
+        },
+        {
+          "day": 16,
+          "retention": 7.0,
+          "date": "2026-09-16T12:34:56.363702"
+        },
+        {
+          "day": 17,
+          "retention": 6.5,
+          "date": "2026-09-17T12:34:56.363704"
+        },
+        {
+          "day": 18,
+          "retention": 6.0,
+          "date": "2026-09-18T12:34:56.363706"
+        },
+        {
+          "day": 19,
+          "retention": 5.6,
+          "date": "2026-09-19T12:34:56.363708"
+        },
+        {
+          "day": 20,
+          "retention": 5.3,
+          "date": "2026-09-20T12:34:56.363710"
+        },
+        {
+          "day": 21,
+          "retention": 4.9,
+          "date": "2026-09-21T12:34:56.363712"
+        },
+        {
+          "day": 22,
+          "retention": 4.6,
+          "date": "2026-09-22T12:34:56.363713"
+        },
+        {
+          "day": 23,
+          "retention": 4.4,
+          "date": "2026-09-23T12:34:56.363715"
+        },
+        {
+          "day": 24,
+          "retention": 4.1,
+          "date": "2026-09-24T12:34:56.363717"
+        },
+        {
+          "day": 25,
+          "retention": 3.9,
+          "date": "2026-09-25T12:34:56.363719"
+        },
+        {
+          "day": 26,
+          "retention": 3.6,
+          "date": "2026-09-26T12:34:56.363721"
+        },
+        {
+          "day": 27,
+          "retention": 3.4,
+          "date": "2026-09-27T12:34:56.363723"
+        },
+        {
+          "day": 28,
+          "retention": 3.2,
+          "date": "2026-09-28T12:34:56.363725"
+        },
+        {
+          "day": 29,
+          "retention": 3.0,
+          "date": "2026-09-29T12:34:56.363727"
+        },
+        {
+          "day": 30,
+          "retention": 2.9,
+          "date": "2026-09-30T12:34:56.363729"
+        }
+      ],
+      "conceptCount": 6,
+      "currentRetention": 100.0,
+      "domainName": "Law (0421)"
+    },
+    "0412-finance-banking-insurance": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.363749"
+        },
+        {
+          "day": 1,
+          "retention": 71.2,
+          "date": "2026-09-01T12:34:56.363764"
+        },
+        {
+          "day": 2,
+          "retention": 54.9,
+          "date": "2026-09-02T12:34:56.363777"
+        },
+        {
+          "day": 3,
+          "retention": 43.3,
+          "date": "2026-09-03T12:34:56.363790"
+        },
+        {
+          "day": 4,
+          "retention": 34.9,
+          "date": "2026-09-04T12:34:56.363802"
+        },
+        {
+          "day": 5,
+          "retention": 28.7,
+          "date": "2026-09-05T12:34:56.363814"
+        },
+        {
+          "day": 6,
+          "retention": 24.1,
+          "date": "2026-09-06T12:34:56.363825"
+        },
+        {
+          "day": 7,
+          "retention": 20.5,
+          "date": "2026-09-07T12:34:56.363837"
+        },
+        {
+          "day": 8,
+          "retention": 17.8,
+          "date": "2026-09-08T12:34:56.363849"
+        },
+        {
+          "day": 9,
+          "retention": 15.7,
+          "date": "2026-09-09T12:34:56.363861"
+        },
+        {
+          "day": 10,
+          "retention": 14.0,
+          "date": "2026-09-10T12:34:56.363873"
+        },
+        {
+          "day": 11,
+          "retention": 12.6,
+          "date": "2026-09-11T12:34:56.363890"
+        },
+        {
+          "day": 12,
+          "retention": 11.5,
+          "date": "2026-09-12T12:34:56.363901"
+        },
+        {
+          "day": 13,
+          "retention": 10.6,
+          "date": "2026-09-13T12:34:56.363913"
+        },
+        {
+          "day": 14,
+          "retention": 9.8,
+          "date": "2026-09-14T12:34:56.363926"
+        },
+        {
+          "day": 15,
+          "retention": 9.1,
+          "date": "2026-09-15T12:34:56.363938"
+        },
+        {
+          "day": 16,
+          "retention": 8.5,
+          "date": "2026-09-16T12:34:56.363950"
+        },
+        {
+          "day": 17,
+          "retention": 7.9,
+          "date": "2026-09-17T12:34:56.363962"
+        },
+        {
+          "day": 18,
+          "retention": 7.5,
+          "date": "2026-09-18T12:34:56.363975"
+        },
+        {
+          "day": 19,
+          "retention": 7.0,
+          "date": "2026-09-19T12:34:56.363987"
+        },
+        {
+          "day": 20,
+          "retention": 6.6,
+          "date": "2026-09-20T12:34:56.363998"
+        },
+        {
+          "day": 21,
+          "retention": 6.3,
+          "date": "2026-09-21T12:34:56.364012"
+        },
+        {
+          "day": 22,
+          "retention": 5.9,
+          "date": "2026-09-22T12:34:56.364032"
+        },
+        {
+          "day": 23,
+          "retention": 5.6,
+          "date": "2026-09-23T12:34:56.364055"
+        },
+        {
+          "day": 24,
+          "retention": 5.3,
+          "date": "2026-09-24T12:34:56.364069"
+        },
+        {
+          "day": 25,
+          "retention": 5.0,
+          "date": "2026-09-25T12:34:56.364082"
+        },
+        {
+          "day": 26,
+          "retention": 4.8,
+          "date": "2026-09-26T12:34:56.364094"
+        },
+        {
+          "day": 27,
+          "retention": 4.5,
+          "date": "2026-09-27T12:34:56.364106"
+        },
+        {
+          "day": 28,
+          "retention": 4.3,
+          "date": "2026-09-28T12:34:56.364117"
+        },
+        {
+          "day": 29,
+          "retention": 4.1,
+          "date": "2026-09-29T12:34:56.364128"
+        },
+        {
+          "day": 30,
+          "retention": 3.9,
+          "date": "2026-09-30T12:34:56.364145"
+        }
+      ],
+      "conceptCount": 273,
+      "currentRetention": 100.0,
+      "domainName": "Finance Banking Insurance (0412)"
+    },
+    "0412-finance-banking-and-insurance": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.364159"
+        },
+        {
+          "day": 1,
+          "retention": 73.7,
+          "date": "2026-09-01T12:34:56.364165"
+        },
+        {
+          "day": 2,
+          "retention": 55.6,
+          "date": "2026-09-02T12:34:56.364170"
+        },
+        {
+          "day": 3,
+          "retention": 42.9,
+          "date": "2026-09-03T12:34:56.364174"
+        },
+        {
+          "day": 4,
+          "retention": 33.7,
+          "date": "2026-09-04T12:34:56.364177"
+        },
+        {
+          "day": 5,
+          "retention": 27.0,
+          "date": "2026-09-05T12:34:56.364180"
+        },
+        {
+          "day": 6,
+          "retention": 22.0,
+          "date": "2026-09-06T12:34:56.364184"
+        },
+        {
+          "day": 7,
+          "retention": 18.3,
+          "date": "2026-09-07T12:34:56.364187"
+        },
+        {
+          "day": 8,
+          "retention": 15.5,
+          "date": "2026-09-08T12:34:56.364190"
+        },
+        {
+          "day": 9,
+          "retention": 13.3,
+          "date": "2026-09-09T12:34:56.364193"
+        },
+        {
+          "day": 10,
+          "retention": 11.6,
+          "date": "2026-09-10T12:34:56.364196"
+        },
+        {
+          "day": 11,
+          "retention": 10.3,
+          "date": "2026-09-11T12:34:56.364200"
+        },
+        {
+          "day": 12,
+          "retention": 9.2,
+          "date": "2026-09-12T12:34:56.364203"
+        },
+        {
+          "day": 13,
+          "retention": 8.3,
+          "date": "2026-09-13T12:34:56.364206"
+        },
+        {
+          "day": 14,
+          "retention": 7.6,
+          "date": "2026-09-14T12:34:56.364209"
+        },
+        {
+          "day": 15,
+          "retention": 7.0,
+          "date": "2026-09-15T12:34:56.364212"
+        },
+        {
+          "day": 16,
+          "retention": 6.4,
+          "date": "2026-09-16T12:34:56.364215"
+        },
+        {
+          "day": 17,
+          "retention": 6.0,
+          "date": "2026-09-17T12:34:56.364218"
+        },
+        {
+          "day": 18,
+          "retention": 5.6,
+          "date": "2026-09-18T12:34:56.364222"
+        },
+        {
+          "day": 19,
+          "retention": 5.2,
+          "date": "2026-09-19T12:34:56.364225"
+        },
+        {
+          "day": 20,
+          "retention": 4.9,
+          "date": "2026-09-20T12:34:56.364228"
+        },
+        {
+          "day": 21,
+          "retention": 4.6,
+          "date": "2026-09-21T12:34:56.364231"
+        },
+        {
+          "day": 22,
+          "retention": 4.3,
+          "date": "2026-09-22T12:34:56.364234"
+        },
+        {
+          "day": 23,
+          "retention": 4.0,
+          "date": "2026-09-23T12:34:56.364237"
+        },
+        {
+          "day": 24,
+          "retention": 3.8,
+          "date": "2026-09-24T12:34:56.364240"
+        },
+        {
+          "day": 25,
+          "retention": 3.6,
+          "date": "2026-09-25T12:34:56.364243"
+        },
+        {
+          "day": 26,
+          "retention": 3.3,
+          "date": "2026-09-26T12:34:56.364246"
+        },
+        {
+          "day": 27,
+          "retention": 3.2,
+          "date": "2026-09-27T12:34:56.364249"
+        },
+        {
+          "day": 28,
+          "retention": 3.0,
+          "date": "2026-09-28T12:34:56.364257"
+        },
+        {
+          "day": 29,
+          "retention": 2.8,
+          "date": "2026-09-29T12:34:56.364260"
+        },
+        {
+          "day": 30,
+          "retention": 2.6,
+          "date": "2026-09-30T12:34:56.364263"
+        }
+      ],
+      "conceptCount": 13,
+      "currentRetention": 100.0,
+      "domainName": "Finance Banking And Insurance (0412)"
+    },
+    "0312-political-sciences-civics": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.364272"
+        },
+        {
+          "day": 1,
+          "retention": 72.5,
+          "date": "2026-09-01T12:34:56.364276"
+        },
+        {
+          "day": 2,
+          "retention": 52.5,
+          "date": "2026-09-02T12:34:56.364279"
+        },
+        {
+          "day": 3,
+          "retention": 38.1,
+          "date": "2026-09-03T12:34:56.364282"
+        },
+        {
+          "day": 4,
+          "retention": 27.6,
+          "date": "2026-09-04T12:34:56.364285"
+        },
+        {
+          "day": 5,
+          "retention": 20.0,
+          "date": "2026-09-05T12:34:56.364288"
+        },
+        {
+          "day": 6,
+          "retention": 14.5,
+          "date": "2026-09-06T12:34:56.364291"
+        },
+        {
+          "day": 7,
+          "retention": 10.5,
+          "date": "2026-09-07T12:34:56.364293"
+        },
+        {
+          "day": 8,
+          "retention": 7.6,
+          "date": "2026-09-08T12:34:56.364296"
+        },
+        {
+          "day": 9,
+          "retention": 5.5,
+          "date": "2026-09-09T12:34:56.364299"
+        },
+        {
+          "day": 10,
+          "retention": 4.0,
+          "date": "2026-09-10T12:34:56.364302"
+        },
+        {
+          "day": 11,
+          "retention": 2.9,
+          "date": "2026-09-11T12:34:56.364316"
+        },
+        {
+          "day": 12,
+          "retention": 2.1,
+          "date": "2026-09-12T12:34:56.364323"
+        },
+        {
+          "day": 13,
+          "retention": 1.5,
+          "date": "2026-09-13T12:34:56.364325"
+        },
+        {
+          "day": 14,
+          "retention": 1.1,
+          "date": "2026-09-14T12:34:56.364327"
+        },
+        {
+          "day": 15,
+          "retention": 0.8,
+          "date": "2026-09-15T12:34:56.364328"
+        },
+        {
+          "day": 16,
+          "retention": 0.6,
+          "date": "2026-09-16T12:34:56.364330"
+        },
+        {
+          "day": 17,
+          "retention": 0.4,
+          "date": "2026-09-17T12:34:56.364332"
+        },
+        {
+          "day": 18,
+          "retention": 0.3,
+          "date": "2026-09-18T12:34:56.364333"
+        },
+        {
+          "day": 19,
+          "retention": 0.2,
+          "date": "2026-09-19T12:34:56.364335"
+        },
+        {
+          "day": 20,
+          "retention": 0.2,
+          "date": "2026-09-20T12:34:56.364337"
+        },
+        {
+          "day": 21,
+          "retention": 0.1,
+          "date": "2026-09-21T12:34:56.364338"
+        },
+        {
+          "day": 22,
+          "retention": 0.1,
+          "date": "2026-09-22T12:34:56.364340"
+        },
+        {
+          "day": 23,
+          "retention": 0.1,
+          "date": "2026-09-23T12:34:56.364342"
+        },
+        {
+          "day": 24,
+          "retention": 0.0,
+          "date": "2026-09-24T12:34:56.364344"
+        },
+        {
+          "day": 25,
+          "retention": 0.0,
+          "date": "2026-09-25T12:34:56.364345"
+        },
+        {
+          "day": 26,
+          "retention": 0.0,
+          "date": "2026-09-26T12:34:56.364347"
+        },
+        {
+          "day": 27,
+          "retention": 0.0,
+          "date": "2026-09-27T12:34:56.364349"
+        },
+        {
+          "day": 28,
+          "retention": 0.0,
+          "date": "2026-09-28T12:34:56.364350"
+        },
+        {
+          "day": 29,
+          "retention": 0.0,
+          "date": "2026-09-29T12:34:56.364352"
+        },
+        {
+          "day": 30,
+          "retention": 0.0,
+          "date": "2026-09-30T12:34:56.364354"
+        }
+      ],
+      "conceptCount": 1,
+      "currentRetention": 100.0,
+      "domainName": "Political Sciences Civics (0312)"
+    },
+    "0231-language-acquisition": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.364383"
+        },
+        {
+          "day": 1,
+          "retention": 71.8,
+          "date": "2026-09-01T12:34:56.364415"
+        },
+        {
+          "day": 2,
+          "retention": 52.5,
+          "date": "2026-09-02T12:34:56.364442"
+        },
+        {
+          "day": 3,
+          "retention": 38.5,
+          "date": "2026-09-03T12:34:56.364471"
+        },
+        {
+          "day": 4,
+          "retention": 28.4,
+          "date": "2026-09-04T12:34:56.364507"
+        },
+        {
+          "day": 5,
+          "retention": 21.1,
+          "date": "2026-09-05T12:34:56.364531"
+        },
+        {
+          "day": 6,
+          "retention": 15.7,
+          "date": "2026-09-06T12:34:56.364555"
+        },
+        {
+          "day": 7,
+          "retention": 11.9,
+          "date": "2026-09-07T12:34:56.364581"
+        },
+        {
+          "day": 8,
+          "retention": 9.0,
+          "date": "2026-09-08T12:34:56.364604"
+        },
+        {
+          "day": 9,
+          "retention": 6.9,
+          "date": "2026-09-09T12:34:56.364631"
+        },
+        {
+          "day": 10,
+          "retention": 5.4,
+          "date": "2026-09-10T12:34:56.364655"
+        },
+        {
+          "day": 11,
+          "retention": 4.3,
+          "date": "2026-09-11T12:34:56.364699"
+        },
+        {
+          "day": 12,
+          "retention": 3.4,
+          "date": "2026-09-12T12:34:56.364723"
+        },
+        {
+          "day": 13,
+          "retention": 2.8,
+          "date": "2026-09-13T12:34:56.364749"
+        },
+        {
+          "day": 14,
+          "retention": 2.3,
+          "date": "2026-09-14T12:34:56.364776"
+        },
+        {
+          "day": 15,
+          "retention": 2.0,
+          "date": "2026-09-15T12:34:56.364803"
+        },
+        {
+          "day": 16,
+          "retention": 1.7,
+          "date": "2026-09-16T12:34:56.364826"
+        },
+        {
+          "day": 17,
+          "retention": 1.5,
+          "date": "2026-09-17T12:34:56.364938"
+        },
+        {
+          "day": 18,
+          "retention": 1.3,
+          "date": "2026-09-18T12:34:56.364963"
+        },
+        {
+          "day": 19,
+          "retention": 1.2,
+          "date": "2026-09-19T12:34:56.364987"
+        },
+        {
+          "day": 20,
+          "retention": 1.1,
+          "date": "2026-09-20T12:34:56.365010"
+        },
+        {
+          "day": 21,
+          "retention": 1.0,
+          "date": "2026-09-21T12:34:56.365036"
+        },
+        {
+          "day": 22,
+          "retention": 0.9,
+          "date": "2026-09-22T12:34:56.365059"
+        },
+        {
+          "day": 23,
+          "retention": 0.9,
+          "date": "2026-09-23T12:34:56.365082"
+        },
+        {
+          "day": 24,
+          "retention": 0.8,
+          "date": "2026-09-24T12:34:56.365105"
+        },
+        {
+          "day": 25,
+          "retention": 0.8,
+          "date": "2026-09-25T12:34:56.365129"
+        },
+        {
+          "day": 26,
+          "retention": 0.7,
+          "date": "2026-09-26T12:34:56.365152"
+        },
+        {
+          "day": 27,
+          "retention": 0.7,
+          "date": "2026-09-27T12:34:56.365176"
+        },
+        {
+          "day": 28,
+          "retention": 0.7,
+          "date": "2026-09-28T12:34:56.365199"
+        },
+        {
+          "day": 29,
+          "retention": 0.6,
+          "date": "2026-09-29T12:34:56.365223"
+        },
+        {
+          "day": 30,
+          "retention": 0.6,
+          "date": "2026-09-30T12:34:56.365250"
+        }
+      ],
+      "conceptCount": 648,
+      "currentRetention": 100.0,
+      "domainName": "Language Acquisition (0231)"
+    },
+    "0232-literature-and-linguistics": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.365258"
+        },
+        {
+          "day": 1,
+          "retention": 78.7,
+          "date": "2026-09-01T12:34:56.365260"
+        },
+        {
+          "day": 2,
+          "retention": 62.9,
+          "date": "2026-09-02T12:34:56.365262"
+        },
+        {
+          "day": 3,
+          "retention": 51.1,
+          "date": "2026-09-03T12:34:56.365264"
+        },
+        {
+          "day": 4,
+          "retention": 42.3,
+          "date": "2026-09-04T12:34:56.365266"
+        },
+        {
+          "day": 5,
+          "retention": 35.6,
+          "date": "2026-09-05T12:34:56.365268"
+        },
+        {
+          "day": 6,
+          "retention": 30.4,
+          "date": "2026-09-06T12:34:56.365270"
+        },
+        {
+          "day": 7,
+          "retention": 26.4,
+          "date": "2026-09-07T12:34:56.365272"
+        },
+        {
+          "day": 8,
+          "retention": 23.3,
+          "date": "2026-09-08T12:34:56.365274"
+        },
+        {
+          "day": 9,
+          "retention": 20.8,
+          "date": "2026-09-09T12:34:56.365276"
+        },
+        {
+          "day": 10,
+          "retention": 18.7,
+          "date": "2026-09-10T12:34:56.365280"
+        },
+        {
+          "day": 11,
+          "retention": 17.0,
+          "date": "2026-09-11T12:34:56.365282"
+        },
+        {
+          "day": 12,
+          "retention": 15.6,
+          "date": "2026-09-12T12:34:56.365284"
+        },
+        {
+          "day": 13,
+          "retention": 14.4,
+          "date": "2026-09-13T12:34:56.365286"
+        },
+        {
+          "day": 14,
+          "retention": 13.3,
+          "date": "2026-09-14T12:34:56.365287"
+        },
+        {
+          "day": 15,
+          "retention": 12.4,
+          "date": "2026-09-15T12:34:56.365289"
+        },
+        {
+          "day": 16,
+          "retention": 11.6,
+          "date": "2026-09-16T12:34:56.365291"
+        },
+        {
+          "day": 17,
+          "retention": 10.8,
+          "date": "2026-09-17T12:34:56.365293"
+        },
+        {
+          "day": 18,
+          "retention": 10.1,
+          "date": "2026-09-18T12:34:56.365295"
+        },
+        {
+          "day": 19,
+          "retention": 9.5,
+          "date": "2026-09-19T12:34:56.365297"
+        },
+        {
+          "day": 20,
+          "retention": 8.9,
+          "date": "2026-09-20T12:34:56.365299"
+        },
+        {
+          "day": 21,
+          "retention": 8.4,
+          "date": "2026-09-21T12:34:56.365300"
+        },
+        {
+          "day": 22,
+          "retention": 7.9,
+          "date": "2026-09-22T12:34:56.365310"
+        },
+        {
+          "day": 23,
+          "retention": 7.4,
+          "date": "2026-09-23T12:34:56.365312"
+        },
+        {
+          "day": 24,
+          "retention": 7.0,
+          "date": "2026-09-24T12:34:56.365314"
+        },
+        {
+          "day": 25,
+          "retention": 6.6,
+          "date": "2026-09-25T12:34:56.365316"
+        },
+        {
+          "day": 26,
+          "retention": 6.2,
+          "date": "2026-09-26T12:34:56.365318"
+        },
+        {
+          "day": 27,
+          "retention": 5.8,
+          "date": "2026-09-27T12:34:56.365320"
+        },
+        {
+          "day": 28,
+          "retention": 5.5,
+          "date": "2026-09-28T12:34:56.365322"
+        },
+        {
+          "day": 29,
+          "retention": 5.2,
+          "date": "2026-09-29T12:34:56.365323"
+        },
+        {
+          "day": 30,
+          "retention": 4.9,
+          "date": "2026-09-30T12:34:56.365328"
+        }
+      ],
+      "conceptCount": 7,
+      "currentRetention": 100.0,
+      "domainName": "Literature And Linguistics (0232)"
+    },
+    "0222-history-and-archaeology": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.365335"
+        },
+        {
+          "day": 1,
+          "retention": 85.6,
+          "date": "2026-09-01T12:34:56.365337"
+        },
+        {
+          "day": 2,
+          "retention": 74.3,
+          "date": "2026-09-02T12:34:56.365339"
+        },
+        {
+          "day": 3,
+          "retention": 65.5,
+          "date": "2026-09-03T12:34:56.365340"
+        },
+        {
+          "day": 4,
+          "retention": 58.4,
+          "date": "2026-09-04T12:34:56.365342"
+        },
+        {
+          "day": 5,
+          "retention": 52.7,
+          "date": "2026-09-05T12:34:56.365344"
+        },
+        {
+          "day": 6,
+          "retention": 47.9,
+          "date": "2026-09-06T12:34:56.365346"
+        },
+        {
+          "day": 7,
+          "retention": 43.9,
+          "date": "2026-09-07T12:34:56.365348"
+        },
+        {
+          "day": 8,
+          "retention": 40.5,
+          "date": "2026-09-08T12:34:56.365349"
+        },
+        {
+          "day": 9,
+          "retention": 37.5,
+          "date": "2026-09-09T12:34:56.365351"
+        },
+        {
+          "day": 10,
+          "retention": 34.9,
+          "date": "2026-09-10T12:34:56.365353"
+        },
+        {
+          "day": 11,
+          "retention": 32.6,
+          "date": "2026-09-11T12:34:56.365355"
+        },
+        {
+          "day": 12,
+          "retention": 30.4,
+          "date": "2026-09-12T12:34:56.365356"
+        },
+        {
+          "day": 13,
+          "retention": 28.5,
+          "date": "2026-09-13T12:34:56.365358"
+        },
+        {
+          "day": 14,
+          "retention": 26.8,
+          "date": "2026-09-14T12:34:56.365360"
+        },
+        {
+          "day": 15,
+          "retention": 25.1,
+          "date": "2026-09-15T12:34:56.365362"
+        },
+        {
+          "day": 16,
+          "retention": 23.6,
+          "date": "2026-09-16T12:34:56.365363"
+        },
+        {
+          "day": 17,
+          "retention": 22.2,
+          "date": "2026-09-17T12:34:56.365365"
+        },
+        {
+          "day": 18,
+          "retention": 20.9,
+          "date": "2026-09-18T12:34:56.365367"
+        },
+        {
+          "day": 19,
+          "retention": 19.7,
+          "date": "2026-09-19T12:34:56.365369"
+        },
+        {
+          "day": 20,
+          "retention": 18.5,
+          "date": "2026-09-20T12:34:56.365371"
+        },
+        {
+          "day": 21,
+          "retention": 17.5,
+          "date": "2026-09-21T12:34:56.365372"
+        },
+        {
+          "day": 22,
+          "retention": 16.5,
+          "date": "2026-09-22T12:34:56.365374"
+        },
+        {
+          "day": 23,
+          "retention": 15.5,
+          "date": "2026-09-23T12:34:56.365376"
+        },
+        {
+          "day": 24,
+          "retention": 14.6,
+          "date": "2026-09-24T12:34:56.365378"
+        },
+        {
+          "day": 25,
+          "retention": 13.8,
+          "date": "2026-09-25T12:34:56.365380"
+        },
+        {
+          "day": 26,
+          "retention": 13.0,
+          "date": "2026-09-26T12:34:56.365381"
+        },
+        {
+          "day": 27,
+          "retention": 12.2,
+          "date": "2026-09-27T12:34:56.365383"
+        },
+        {
+          "day": 28,
+          "retention": 11.5,
+          "date": "2026-09-28T12:34:56.365385"
+        },
+        {
+          "day": 29,
+          "retention": 10.9,
+          "date": "2026-09-29T12:34:56.365387"
+        },
+        {
+          "day": 30,
+          "retention": 10.3,
+          "date": "2026-09-30T12:34:56.365391"
+        }
+      ],
+      "conceptCount": 5,
+      "currentRetention": 100.0,
+      "domainName": "History And Archaeology (0222)"
+    },
+    "0611-computer-use": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.365396"
+        },
+        {
+          "day": 1,
+          "retention": 72.5,
+          "date": "2026-09-01T12:34:56.365398"
+        },
+        {
+          "day": 2,
+          "retention": 52.5,
+          "date": "2026-09-02T12:34:56.365401"
+        },
+        {
+          "day": 3,
+          "retention": 38.1,
+          "date": "2026-09-03T12:34:56.365403"
+        },
+        {
+          "day": 4,
+          "retention": 27.6,
+          "date": "2026-09-04T12:34:56.365405"
+        },
+        {
+          "day": 5,
+          "retention": 20.0,
+          "date": "2026-09-05T12:34:56.365408"
+        },
+        {
+          "day": 6,
+          "retention": 14.5,
+          "date": "2026-09-06T12:34:56.365410"
+        },
+        {
+          "day": 7,
+          "retention": 10.5,
+          "date": "2026-09-07T12:34:56.365412"
+        },
+        {
+          "day": 8,
+          "retention": 7.6,
+          "date": "2026-09-08T12:34:56.365414"
+        },
+        {
+          "day": 9,
+          "retention": 5.5,
+          "date": "2026-09-09T12:34:56.365416"
+        },
+        {
+          "day": 10,
+          "retention": 4.0,
+          "date": "2026-09-10T12:34:56.365419"
+        },
+        {
+          "day": 11,
+          "retention": 2.9,
+          "date": "2026-09-11T12:34:56.365424"
+        },
+        {
+          "day": 12,
+          "retention": 2.1,
+          "date": "2026-09-12T12:34:56.365426"
+        },
+        {
+          "day": 13,
+          "retention": 1.5,
+          "date": "2026-09-13T12:34:56.365428"
+        },
+        {
+          "day": 14,
+          "retention": 1.1,
+          "date": "2026-09-14T12:34:56.365433"
+        },
+        {
+          "day": 15,
+          "retention": 0.8,
+          "date": "2026-09-15T12:34:56.365435"
+        },
+        {
+          "day": 16,
+          "retention": 0.6,
+          "date": "2026-09-16T12:34:56.365440"
+        },
+        {
+          "day": 17,
+          "retention": 0.4,
+          "date": "2026-09-17T12:34:56.365442"
+        },
+        {
+          "day": 18,
+          "retention": 0.3,
+          "date": "2026-09-18T12:34:56.365445"
+        },
+        {
+          "day": 19,
+          "retention": 0.2,
+          "date": "2026-09-19T12:34:56.365447"
+        },
+        {
+          "day": 20,
+          "retention": 0.2,
+          "date": "2026-09-20T12:34:56.365449"
+        },
+        {
+          "day": 21,
+          "retention": 0.1,
+          "date": "2026-09-21T12:34:56.365451"
+        },
+        {
+          "day": 22,
+          "retention": 0.1,
+          "date": "2026-09-22T12:34:56.365454"
+        },
+        {
+          "day": 23,
+          "retention": 0.1,
+          "date": "2026-09-23T12:34:56.365456"
+        },
+        {
+          "day": 24,
+          "retention": 0.0,
+          "date": "2026-09-24T12:34:56.365458"
+        },
+        {
+          "day": 25,
+          "retention": 0.0,
+          "date": "2026-09-25T12:34:56.365460"
+        },
+        {
+          "day": 26,
+          "retention": 0.0,
+          "date": "2026-09-26T12:34:56.365463"
+        },
+        {
+          "day": 27,
+          "retention": 0.0,
+          "date": "2026-09-27T12:34:56.365465"
+        },
+        {
+          "day": 28,
+          "retention": 0.0,
+          "date": "2026-09-28T12:34:56.365467"
+        },
+        {
+          "day": 29,
+          "retention": 0.0,
+          "date": "2026-09-29T12:34:56.365472"
+        },
+        {
+          "day": 30,
+          "retention": 0.0,
+          "date": "2026-09-30T12:34:56.365474"
+        }
+      ],
+      "conceptCount": 18,
+      "currentRetention": 100.0,
+      "domainName": "Computer Use (0611)"
+    },
+    "0321-journalism-and-reporting": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.365479"
+        },
+        {
+          "day": 1,
+          "retention": 94.3,
+          "date": "2026-09-01T12:34:56.365482"
+        },
+        {
+          "day": 2,
+          "retention": 88.9,
+          "date": "2026-09-02T12:34:56.365484"
+        },
+        {
+          "day": 3,
+          "retention": 83.8,
+          "date": "2026-09-03T12:34:56.365486"
+        },
+        {
+          "day": 4,
+          "retention": 79.0,
+          "date": "2026-09-04T12:34:56.365488"
+        },
+        {
+          "day": 5,
+          "retention": 74.5,
+          "date": "2026-09-05T12:34:56.365490"
+        },
+        {
+          "day": 6,
+          "retention": 70.2,
+          "date": "2026-09-06T12:34:56.365492"
+        },
+        {
+          "day": 7,
+          "retention": 66.2,
+          "date": "2026-09-07T12:34:56.365494"
+        },
+        {
+          "day": 8,
+          "retention": 62.4,
+          "date": "2026-09-08T12:34:56.365496"
+        },
+        {
+          "day": 9,
+          "retention": 58.9,
+          "date": "2026-09-09T12:34:56.365498"
+        },
+        {
+          "day": 10,
+          "retention": 55.5,
+          "date": "2026-09-10T12:34:56.365500"
+        },
+        {
+          "day": 11,
+          "retention": 52.3,
+          "date": "2026-09-11T12:34:56.365501"
+        },
+        {
+          "day": 12,
+          "retention": 49.3,
+          "date": "2026-09-12T12:34:56.365503"
+        },
+        {
+          "day": 13,
+          "retention": 46.5,
+          "date": "2026-09-13T12:34:56.365505"
+        },
+        {
+          "day": 14,
+          "retention": 43.9,
+          "date": "2026-09-14T12:34:56.365507"
+        },
+        {
+          "day": 15,
+          "retention": 41.3,
+          "date": "2026-09-15T12:34:56.365509"
+        },
+        {
+          "day": 16,
+          "retention": 39.0,
+          "date": "2026-09-16T12:34:56.365511"
+        },
+        {
+          "day": 17,
+          "retention": 36.8,
+          "date": "2026-09-17T12:34:56.365513"
+        },
+        {
+          "day": 18,
+          "retention": 34.7,
+          "date": "2026-09-18T12:34:56.365515"
+        },
+        {
+          "day": 19,
+          "retention": 32.7,
+          "date": "2026-09-19T12:34:56.365517"
+        },
+        {
+          "day": 20,
+          "retention": 30.8,
+          "date": "2026-09-20T12:34:56.365519"
+        },
+        {
+          "day": 21,
+          "retention": 29.0,
+          "date": "2026-09-21T12:34:56.365520"
+        },
+        {
+          "day": 22,
+          "retention": 27.4,
+          "date": "2026-09-22T12:34:56.365522"
+        },
+        {
+          "day": 23,
+          "retention": 25.8,
+          "date": "2026-09-23T12:34:56.365524"
+        },
+        {
+          "day": 24,
+          "retention": 24.3,
+          "date": "2026-09-24T12:34:56.365526"
+        },
+        {
+          "day": 25,
+          "retention": 22.9,
+          "date": "2026-09-25T12:34:56.365528"
+        },
+        {
+          "day": 26,
+          "retention": 21.6,
+          "date": "2026-09-26T12:34:56.365530"
+        },
+        {
+          "day": 27,
+          "retention": 20.4,
+          "date": "2026-09-27T12:34:56.365532"
+        },
+        {
+          "day": 28,
+          "retention": 19.2,
+          "date": "2026-09-28T12:34:56.365534"
+        },
+        {
+          "day": 29,
+          "retention": 18.1,
+          "date": "2026-09-29T12:34:56.365535"
+        },
+        {
+          "day": 30,
+          "retention": 17.1,
+          "date": "2026-09-30T12:34:56.365542"
+        }
+      ],
+      "conceptCount": 8,
+      "currentRetention": 100.0,
+      "domainName": "Journalism And Reporting (0321)"
+    },
+    "0312-political-sciences-and-civics": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.365546"
+        },
+        {
+          "day": 1,
+          "retention": 86.1,
+          "date": "2026-09-01T12:34:56.365548"
+        },
+        {
+          "day": 2,
+          "retention": 75.3,
+          "date": "2026-09-02T12:34:56.365550"
+        },
+        {
+          "day": 3,
+          "retention": 66.7,
+          "date": "2026-09-03T12:34:56.365552"
+        },
+        {
+          "day": 4,
+          "retention": 59.7,
+          "date": "2026-09-04T12:34:56.365556"
+        },
+        {
+          "day": 5,
+          "retention": 54.1,
+          "date": "2026-09-05T12:34:56.365560"
+        },
+        {
+          "day": 6,
+          "retention": 49.3,
+          "date": "2026-09-06T12:34:56.365562"
+        },
+        {
+          "day": 7,
+          "retention": 45.3,
+          "date": "2026-09-07T12:34:56.365564"
+        },
+        {
+          "day": 8,
+          "retention": 41.9,
+          "date": "2026-09-08T12:34:56.365566"
+        },
+        {
+          "day": 9,
+          "retention": 38.9,
+          "date": "2026-09-09T12:34:56.365568"
+        },
+        {
+          "day": 10,
+          "retention": 36.2,
+          "date": "2026-09-10T12:34:56.365569"
+        },
+        {
+          "day": 11,
+          "retention": 33.8,
+          "date": "2026-09-11T12:34:56.365571"
+        },
+        {
+          "day": 12,
+          "retention": 31.6,
+          "date": "2026-09-12T12:34:56.365573"
+        },
+        {
+          "day": 13,
+          "retention": 29.6,
+          "date": "2026-09-13T12:34:56.365575"
+        },
+        {
+          "day": 14,
+          "retention": 27.8,
+          "date": "2026-09-14T12:34:56.365577"
+        },
+        {
+          "day": 15,
+          "retention": 26.1,
+          "date": "2026-09-15T12:34:56.365579"
+        },
+        {
+          "day": 16,
+          "retention": 24.6,
+          "date": "2026-09-16T12:34:56.365580"
+        },
+        {
+          "day": 17,
+          "retention": 23.1,
+          "date": "2026-09-17T12:34:56.365582"
+        },
+        {
+          "day": 18,
+          "retention": 21.8,
+          "date": "2026-09-18T12:34:56.365584"
+        },
+        {
+          "day": 19,
+          "retention": 20.5,
+          "date": "2026-09-19T12:34:56.365586"
+        },
+        {
+          "day": 20,
+          "retention": 19.3,
+          "date": "2026-09-20T12:34:56.365588"
+        },
+        {
+          "day": 21,
+          "retention": 18.2,
+          "date": "2026-09-21T12:34:56.365590"
+        },
+        {
+          "day": 22,
+          "retention": 17.1,
+          "date": "2026-09-22T12:34:56.365592"
+        },
+        {
+          "day": 23,
+          "retention": 16.2,
+          "date": "2026-09-23T12:34:56.365593"
+        },
+        {
+          "day": 24,
+          "retention": 15.2,
+          "date": "2026-09-24T12:34:56.365595"
+        },
+        {
+          "day": 25,
+          "retention": 14.4,
+          "date": "2026-09-25T12:34:56.365597"
+        },
+        {
+          "day": 26,
+          "retention": 13.5,
+          "date": "2026-09-26T12:34:56.365599"
+        },
+        {
+          "day": 27,
+          "retention": 12.8,
+          "date": "2026-09-27T12:34:56.365601"
+        },
+        {
+          "day": 28,
+          "retention": 12.0,
+          "date": "2026-09-28T12:34:56.365603"
+        },
+        {
+          "day": 29,
+          "retention": 11.3,
+          "date": "2026-09-29T12:34:56.365605"
+        },
+        {
+          "day": 30,
+          "retention": 10.7,
+          "date": "2026-09-30T12:34:56.365609"
+        }
+      ],
+      "conceptCount": 8,
+      "currentRetention": 100.0,
+      "domainName": "Political Sciences And Civics (0312)"
+    },
+    "0311-economics": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.365613"
+        },
+        {
+          "day": 1,
+          "retention": 72.5,
+          "date": "2026-09-01T12:34:56.365616"
+        },
+        {
+          "day": 2,
+          "retention": 52.5,
+          "date": "2026-09-02T12:34:56.365618"
+        },
+        {
+          "day": 3,
+          "retention": 38.1,
+          "date": "2026-09-03T12:34:56.365621"
+        },
+        {
+          "day": 4,
+          "retention": 27.6,
+          "date": "2026-09-04T12:34:56.365623"
+        },
+        {
+          "day": 5,
+          "retention": 20.0,
+          "date": "2026-09-05T12:34:56.365625"
+        },
+        {
+          "day": 6,
+          "retention": 14.5,
+          "date": "2026-09-06T12:34:56.365627"
+        },
+        {
+          "day": 7,
+          "retention": 10.5,
+          "date": "2026-09-07T12:34:56.365630"
+        },
+        {
+          "day": 8,
+          "retention": 7.6,
+          "date": "2026-09-08T12:34:56.365632"
+        },
+        {
+          "day": 9,
+          "retention": 5.5,
+          "date": "2026-09-09T12:34:56.365634"
+        },
+        {
+          "day": 10,
+          "retention": 4.0,
+          "date": "2026-09-10T12:34:56.365636"
+        },
+        {
+          "day": 11,
+          "retention": 2.9,
+          "date": "2026-09-11T12:34:56.365639"
+        },
+        {
+          "day": 12,
+          "retention": 2.1,
+          "date": "2026-09-12T12:34:56.365641"
+        },
+        {
+          "day": 13,
+          "retention": 1.5,
+          "date": "2026-09-13T12:34:56.365643"
+        },
+        {
+          "day": 14,
+          "retention": 1.1,
+          "date": "2026-09-14T12:34:56.365646"
+        },
+        {
+          "day": 15,
+          "retention": 0.8,
+          "date": "2026-09-15T12:34:56.365648"
+        },
+        {
+          "day": 16,
+          "retention": 0.6,
+          "date": "2026-09-16T12:34:56.365650"
+        },
+        {
+          "day": 17,
+          "retention": 0.4,
+          "date": "2026-09-17T12:34:56.365652"
+        },
+        {
+          "day": 18,
+          "retention": 0.3,
+          "date": "2026-09-18T12:34:56.365655"
+        },
+        {
+          "day": 19,
+          "retention": 0.2,
+          "date": "2026-09-19T12:34:56.365657"
+        },
+        {
+          "day": 20,
+          "retention": 0.2,
+          "date": "2026-09-20T12:34:56.365659"
+        },
+        {
+          "day": 21,
+          "retention": 0.1,
+          "date": "2026-09-21T12:34:56.365661"
+        },
+        {
+          "day": 22,
+          "retention": 0.1,
+          "date": "2026-09-22T12:34:56.365663"
+        },
+        {
+          "day": 23,
+          "retention": 0.1,
+          "date": "2026-09-23T12:34:56.365668"
+        },
+        {
+          "day": 24,
+          "retention": 0.0,
+          "date": "2026-09-24T12:34:56.365670"
+        },
+        {
+          "day": 25,
+          "retention": 0.0,
+          "date": "2026-09-25T12:34:56.365675"
+        },
+        {
+          "day": 26,
+          "retention": 0.0,
+          "date": "2026-09-26T12:34:56.365677"
+        },
+        {
+          "day": 27,
+          "retention": 0.0,
+          "date": "2026-09-27T12:34:56.365693"
+        },
+        {
+          "day": 28,
+          "retention": 0.0,
+          "date": "2026-09-28T12:34:56.365699"
+        },
+        {
+          "day": 29,
+          "retention": 0.0,
+          "date": "2026-09-29T12:34:56.365701"
+        },
+        {
+          "day": 30,
+          "retention": 0.0,
+          "date": "2026-09-30T12:34:56.365703"
+        }
+      ],
+      "conceptCount": 18,
+      "currentRetention": 100.0,
+      "domainName": "Economics (0311)"
+    },
+    "0612-database-and-network-design-and-administration": {
+      "curve": [
+        {
+          "day": 0,
+          "retention": 100.0,
+          "date": "2026-08-31T12:34:56.365707"
+        },
+        {
+          "day": 1,
+          "retention": 72.5,
+          "date": "2026-09-01T12:34:56.365708"
+        },
+        {
+          "day": 2,
+          "retention": 52.5,
+          "date": "2026-09-02T12:34:56.365710"
+        },
+        {
+          "day": 3,
+          "retention": 38.1,
+          "date": "2026-09-03T12:34:56.365714"
+        },
+        {
+          "day": 4,
+          "retention": 27.6,
+          "date": "2026-09-04T12:34:56.365716"
+        },
+        {
+          "day": 5,
+          "retention": 20.0,
+          "date": "2026-09-05T12:34:56.365718"
+        },
+        {
+          "day": 6,
+          "retention": 14.5,
+          "date": "2026-09-06T12:34:56.365720"
+        },
+        {
+          "day": 7,
+          "retention": 10.5,
+          "date": "2026-09-07T12:34:56.365722"
+        },
+        {
+          "day": 8,
+          "retention": 7.6,
+          "date": "2026-09-08T12:34:56.365724"
+        },
+        {
+          "day": 9,
+          "retention": 5.5,
+          "date": "2026-09-09T12:34:56.365725"
+        },
+        {
+          "day": 10,
+          "retention": 4.0,
+          "date": "2026-09-10T12:34:56.365727"
+        },
+        {
+          "day": 11,
+          "retention": 2.9,
+          "date": "2026-09-11T12:34:56.365729"
+        },
+        {
+          "day": 12,
+          "retention": 2.1,
+          "date": "2026-09-12T12:34:56.365731"
+        },
+        {
+          "day": 13,
+          "retention": 1.5,
+          "date": "2026-09-13T12:34:56.365733"
+        },
+        {
+          "day": 14,
+          "retention": 1.1,
+          "date": "2026-09-14T12:34:56.365734"
+        },
+        {
+          "day": 15,
+          "retention": 0.8,
+          "date": "2026-09-15T12:34:56.365736"
+        },
+        {
+          "day": 16,
+          "retention": 0.6,
+          "date": "2026-09-16T12:34:56.365738"
+        },
+        {
+          "day": 17,
+          "retention": 0.4,
+          "date": "2026-09-17T12:34:56.365740"
+        },
+        {
+          "day": 18,
+          "retention": 0.3,
+          "date": "2026-09-18T12:34:56.365744"
+        },
+        {
+          "day": 19,
+          "retention": 0.2,
+          "date": "2026-09-19T12:34:56.365746"
+        },
+        {
+          "day": 20,
+          "retention": 0.2,
+          "date": "2026-09-20T12:34:56.365748"
+        },
+        {
+          "day": 21,
+          "retention": 0.1,
+          "date": "2026-09-21T12:34:56.365750"
+        },
+        {
+          "day": 22,
+          "retention": 0.1,
+          "date": "2026-09-22T12:34:56.365751"
+        },
+        {
+          "day": 23,
+          "retention": 0.1,
+          "date": "2026-09-23T12:34:56.365753"
+        },
+        {
+          "day": 24,
+          "retention": 0.0,
+          "date": "2026-09-24T12:34:56.365755"
+        },
+        {
+          "day": 25,
+          "retention": 0.0,
+          "date": "2026-09-25T12:34:56.365757"
+        },
+        {
+          "day": 26,
+          "retention": 0.0,
+          "date": "2026-09-26T12:34:56.365759"
+        },
+        {
+          "day": 27,
+          "retention": 0.0,
+          "date": "2026-09-27T12:34:56.365760"
+        },
+        {
+          "day": 28,
+          "retention": 0.0,
+          "date": "2026-09-28T12:34:56.365762"
+        },
+        {
+          "day": 29,
+          "retention": 0.0,
+          "date": "2026-09-29T12:34:56.365766"
+        },
+        {
+          "day": 30,
+          "retention": 0.0,
+          "date": "2026-09-30T12:34:56.365768"
+        }
+      ],
+      "conceptCount": 5,
+      "currentRetention": 100.0,
+      "domainName": "Database And Network Design And Administration (0612)"
+    }
+  },
+  "velocity_by_domain": {
+    "uncategorized": {
+      "velocity": 71.25,
+      "reviewsCompleted": 9,
+      "hoursInvested": 0.1,
+      "domainName": "Uncategorized",
+      "benchmark": "fast"
+    },
+    "0533-physics": {
+      "velocity": 1.0,
+      "reviewsCompleted": 0,
+      "hoursInvested": 0.5,
+      "domainName": "Physics (0533)",
+      "benchmark": "slow"
+    },
+    "0613-software-and-applications-development-and-analysis": {
+      "velocity": 5.0,
+      "reviewsCompleted": 2,
+      "hoursInvested": 0.5,
+      "domainName": "Software And Applications Development And Analysis (0613)",
+      "benchmark": "slow"
+    },
+    "0421-law": {
+      "velocity": 6.0,
+      "reviewsCompleted": 3,
+      "hoursInvested": 0.5,
+      "domainName": "Law (0421)",
+      "benchmark": "medium"
+    },
+    "0412-finance-banking-insurance": {
+      "velocity": 273.0,
+      "reviewsCompleted": 136,
+      "hoursInvested": 0.5,
+      "domainName": "Finance Banking Insurance (0412)",
+      "benchmark": "fast"
+    },
+    "0412-finance-banking-and-insurance": {
+      "velocity": 13.0,
+      "reviewsCompleted": 6,
+      "hoursInvested": 0.5,
+      "domainName": "Finance Banking And Insurance (0412)",
+      "benchmark": "fast"
+    },
+    "0312-political-sciences-civics": {
+      "velocity": 1.0,
+      "reviewsCompleted": 0,
+      "hoursInvested": 0.5,
+      "domainName": "Political Sciences Civics (0312)",
+      "benchmark": "slow"
+    },
+    "0231-language-acquisition": {
+      "velocity": 648.0,
+      "reviewsCompleted": 324,
+      "hoursInvested": 0.5,
+      "domainName": "Language Acquisition (0231)",
+      "benchmark": "fast"
+    },
+    "0232-literature-and-linguistics": {
+      "velocity": 7.0,
+      "reviewsCompleted": 3,
+      "hoursInvested": 0.5,
+      "domainName": "Literature And Linguistics (0232)",
+      "benchmark": "medium"
+    },
+    "0222-history-and-archaeology": {
+      "velocity": 5.0,
+      "reviewsCompleted": 2,
+      "hoursInvested": 0.5,
+      "domainName": "History And Archaeology (0222)",
+      "benchmark": "slow"
+    },
+    "0611-computer-use": {
+      "velocity": 18.0,
+      "reviewsCompleted": 9,
+      "hoursInvested": 0.5,
+      "domainName": "Computer Use (0611)",
+      "benchmark": "fast"
+    },
+    "0321-journalism-and-reporting": {
+      "velocity": 8.0,
+      "reviewsCompleted": 4,
+      "hoursInvested": 0.5,
+      "domainName": "Journalism And Reporting (0321)",
+      "benchmark": "medium"
+    },
+    "0312-political-sciences-and-civics": {
+      "velocity": 8.0,
+      "reviewsCompleted": 4,
+      "hoursInvested": 0.5,
+      "domainName": "Political Sciences And Civics (0312)",
+      "benchmark": "medium"
+    },
+    "0311-economics": {
+      "velocity": 18.0,
+      "reviewsCompleted": 9,
+      "hoursInvested": 0.5,
+      "domainName": "Economics (0311)",
+      "benchmark": "fast"
+    },
+    "0612-database-and-network-design-and-administration": {
+      "velocity": 5.0,
+      "reviewsCompleted": 2,
+      "hoursInvested": 0.5,
+      "domainName": "Database And Network Design And Administration (0612)",
+      "benchmark": "slow"
+    }
+  },
+  "mastery_by_domain": {
+    "0533-physics": {
+      "averageMastery": 10.8,
+      "conceptCount": 1,
+      "distribution": {
+        "novice": 1,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Physics (0533)"
+    },
+    "uncategorized": {
+      "averageMastery": 11.1,
+      "conceptCount": 15,
+      "distribution": {
+        "novice": 15,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Uncategorized"
+    },
+    "0613-software-and-applications-development-and-analysis": {
+      "averageMastery": 16.2,
+      "conceptCount": 5,
+      "distribution": {
+        "novice": 5,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Software And Applications Development And Analysis (0613)"
+    },
+    "0421-law": {
+      "averageMastery": 13.1,
+      "conceptCount": 6,
+      "distribution": {
+        "novice": 6,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Law (0421)"
+    },
+    "0412-finance-banking-insurance": {
+      "averageMastery": 14.3,
+      "conceptCount": 273,
+      "distribution": {
+        "novice": 270,
+        "learning": 1,
+        "competent": 0,
+        "expert": 2
+      },
+      "domainName": "Finance Banking Insurance (0412)"
+    },
+    "0412-finance-banking-and-insurance": {
+      "averageMastery": 13.6,
+      "conceptCount": 13,
+      "distribution": {
+        "novice": 13,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Finance Banking And Insurance (0412)"
+    },
+    "0312-political-sciences-civics": {
+      "averageMastery": 10.8,
+      "conceptCount": 1,
+      "distribution": {
+        "novice": 1,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Political Sciences Civics (0312)"
+    },
+    "0231-language-acquisition": {
+      "averageMastery": 11.6,
+      "conceptCount": 648,
+      "distribution": {
+        "novice": 647,
+        "learning": 0,
+        "competent": 0,
+        "expert": 1
+      },
+      "domainName": "Language Acquisition (0231)"
+    },
+    "0232-literature-and-linguistics": {
+      "averageMastery": 14.7,
+      "conceptCount": 7,
+      "distribution": {
+        "novice": 7,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Literature And Linguistics (0232)"
+    },
+    "0222-history-and-archaeology": {
+      "averageMastery": 18.9,
+      "conceptCount": 5,
+      "distribution": {
+        "novice": 5,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "History And Archaeology (0222)"
+    },
+    "0611-computer-use": {
+      "averageMastery": 10.8,
+      "conceptCount": 18,
+      "distribution": {
+        "novice": 18,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Computer Use (0611)"
+    },
+    "0321-journalism-and-reporting": {
+      "averageMastery": 24.3,
+      "conceptCount": 8,
+      "distribution": {
+        "novice": 8,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Journalism And Reporting (0321)"
+    },
+    "0312-political-sciences-and-civics": {
+      "averageMastery": 19.2,
+      "conceptCount": 8,
+      "distribution": {
+        "novice": 8,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Political Sciences And Civics (0312)"
+    },
+    "0311-economics": {
+      "averageMastery": 10.8,
+      "conceptCount": 18,
+      "distribution": {
+        "novice": 18,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Economics (0311)"
+    },
+    "0612-database-and-network-design-and-administration": {
+      "averageMastery": 10.8,
+      "conceptCount": 5,
+      "distribution": {
+        "novice": 5,
+        "learning": 0,
+        "competent": 0,
+        "expert": 0
+      },
+      "domainName": "Database And Network Design And Administration (0612)"
+    }
+  },
+  "adherence_by_domain": {
+    "0312-political-sciences-and-civics": {
+      "adherence": 0.0,
+      "onTime": 0,
+      "late": 3,
+      "totalDue": 3,
+      "domainName": "Political Sciences And Civics (0312)",
+      "classification": "poor"
+    }
+  },
+  "time_distribution": {
+    "totalHours": 40.43,
+    "byDomain": {
+      "Computer Use (0611)": 4.6,
+      "Finance Banking Insurance (0412)": 25.67,
+      "Language Acquisition (0231)": 9.23,
+      "Economics (0311)": 0.53,
+      "Uncategorized": 0.4
+    }
+  },
+  "streak_tracking": {
+    "currentStreak": 0,
+    "longestStreak": 6,
+    "totalActiveDays": 45,
+    "lastActivity": "2026-08-22"
+  }
+};
+
+        // Global chart instances for memory management
+        const chartInstances = {};
+        let searchData = [];
+        let memoryCheckInterval;
+        let initialMemory = 0;
+
+        // Performance monitoring
+        class PerformanceMonitor {
+            constructor() {
+                this.fps = 60;
+                this.memoryUsage = 0;
+                this.lastTime = performance.now();
+                this.frames = 0;
+                this.indicator = document.getElementById('performanceIndicator');
+                this.text = document.getElementById('performanceText');
+
+                if (performance.memory) {
+                    initialMemory = performance.memory.usedJSHeapSize / 1048576;
+                    this.startMonitoring();
+                }
+            }
+
+            startMonitoring() {
+                // Monitor FPS
+                const measureFPS = () => {
+                    this.frames++;
+                    const currentTime = performance.now();
+
+                    if (currentTime >= this.lastTime + 1000) {
+                        this.fps = Math.round((this.frames * 1000) / (currentTime - this.lastTime));
+                        this.frames = 0;
+                        this.lastTime = currentTime;
+
+                        // Check memory
+                        if (performance.memory) {
+                            const currentMemory = performance.memory.usedJSHeapSize / 1048576;
+                            this.memoryUsage = Math.round(currentMemory - initialMemory);
+                        }
+
+                        this.updateIndicator();
+                    }
+
+                    requestAnimationFrame(measureFPS);
+                };
+
+                requestAnimationFrame(measureFPS);
+
+                // Memory leak detection
+                memoryCheckInterval = setInterval(() => {
+                    if (performance.memory) {
+                        const currentMemory = performance.memory.usedJSHeapSize / 1048576;
+                        const memoryGrowth = currentMemory - initialMemory;
+
+                        if (memoryGrowth > 50) {
+                            console.warn('Memory leak detected:', memoryGrowth + 'MB growth');
+                            this.indicator.classList.add('warning');
+                        }
+
+                        if (memoryGrowth > 100) {
+                            console.error('Critical memory leak:', memoryGrowth + 'MB growth');
+                            this.indicator.classList.add('error');
+                            this.cleanupMemory();
+                        }
+                    }
+                }, 10000);
+            }
+
+            updateIndicator() {
+                if (this.fps < 30) {
+                    this.indicator.classList.add('warning');
+                    this.indicator.style.display = 'block';
+                    this.text.textContent = `FPS: ${this.fps} | Memory: ${this.memoryUsage}MB`;
+                }
+
+                // Hide if performance is good
+                if (this.fps >= 50 && this.memoryUsage < 20) {
+                    this.indicator.style.display = 'none';
+                }
+            }
+
+            cleanupMemory() {
+                // Destroy unused chart instances
+                Object.keys(chartInstances).forEach(key => {
+                    if (chartInstances[key] && !document.getElementById(key)) {
+                        chartInstances[key].destroy();
+                        delete chartInstances[key];
+                    }
+                });
+
+                // Clear search data if too large
+                if (searchData.length > 1000) {
+                    searchData = searchData.slice(0, 500);
+                }
+
+                // Force garbage collection if available
+                if (window.gc) {
+                    window.gc();
+                }
+            }
+
+            destroy() {
+                clearInterval(memoryCheckInterval);
+            }
+        }
+
+        // Loading indicator management
+        function showLoading(message = 'Loading...') {
+            const indicator = document.getElementById('loadingIndicator');
+            const text = document.getElementById('loadingText');
+            text.textContent = message;
+            indicator.classList.add('active');
+        }
+
+        function hideLoading() {
+            const indicator = document.getElementById('loadingIndicator');
+            indicator.classList.remove('active');
+        }
+
+        // Accessibility announcements
+        function announce(message) {
+            const announcer = document.getElementById('announcements');
+            announcer.textContent = message;
+            setTimeout(() => announcer.textContent = '', 1000);
+        }
+
+        // Search functionality
+        function initSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+
+            if (!analyticsData) return;
+
+            // Build searchable data index
+            searchData = [];
+
+            // Add domains
+            Object.keys(analyticsData.retention_by_domain || {}).forEach(domain => {
+                searchData.push({
+                    type: 'domain',
+                    label: domain,
+                    value: domain,
+                    description: `Domain: ${domain}`
+                });
+            });
+
+            // Add metrics
+            const summary = analyticsData.summary || {};
+            searchData.push(
+                { type: 'metric', label: 'Current Streak', value: summary.current_streak, description: `${summary.current_streak} consecutive days` },
+                { type: 'metric', label: 'Total Concepts', value: summary.total_concepts, description: `${summary.total_concepts} concepts tracked` },
+                { type: 'metric', label: 'Review Adherence', value: summary.review_adherence, description: `${Math.round(summary.review_adherence)}% adherence rate` },
+                { type: 'metric', label: 'Average Velocity', value: summary.avg_velocity, description: `${summary.avg_velocity?.toFixed(1)} concepts/week` }
+            );
+
+            // Search event handlers
+            let selectedIndex = -1;
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+
+                if (query.length < 2) {
+                    searchResults.classList.remove('active');
+                    searchResults.innerHTML = '';
+                    return;
+                }
+
+                const matches = searchData.filter(item =>
+                    item.label.toLowerCase().includes(query) ||
+                    item.description.toLowerCase().includes(query)
+                );
+
+                if (matches.length === 0) {
+                    searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
+                    searchResults.classList.add('active');
+                    return;
+                }
+
+                searchResults.innerHTML = matches.map((item, index) =>
+                    `<div class="search-result-item"
+                          role="option"
+                          aria-selected="false"
+                          data-index="${index}"
+                          data-type="${item.type}"
+                          data-value="${item.value}"
+                          tabindex="-1">
+                        <strong>${item.label}</strong><br>
+                        <small>${item.description}</small>
+                    </div>`
+                ).join('');
+
+                searchResults.classList.add('active');
+                selectedIndex = -1;
+
+                // Click handlers
+                searchResults.querySelectorAll('.search-result-item').forEach((item, idx) => {
+                    item.addEventListener('click', () => selectSearchResult(item));
+                    item.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') selectSearchResult(item);
+                    });
+                });
+            });
+
+            // Keyboard navigation
+            searchInput.addEventListener('keydown', (e) => {
+                const items = searchResults.querySelectorAll('.search-result-item');
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelectedItem(items, selectedIndex);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    updateSelectedItem(items, selectedIndex);
+                } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                    e.preventDefault();
+                    selectSearchResult(items[selectedIndex]);
+                } else if (e.key === 'Escape') {
+                    searchResults.classList.remove('active');
+                    searchInput.value = '';
+                }
+            });
+
+            // Click outside to close
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-wrapper')) {
+                    searchResults.classList.remove('active');
+                }
+            });
+        }
+
+        function updateSelectedItem(items, index) {
+            items.forEach((item, idx) => {
+                item.setAttribute('aria-selected', idx === index ? 'true' : 'false');
+                item.style.background = idx === index ? '#f3f4f6' : '';
+                if (idx === index) {
+                    item.focus();
+                    announce(`${item.querySelector('strong').textContent} selected`);
+                }
+            });
+        }
+
+        function selectSearchResult(item) {
+            const type = item.dataset.type;
+            const value = item.dataset.value;
+
+            // Navigate to relevant section or chart
+            if (type === 'domain') {
+                // Find and highlight domain in charts
+                highlightDomain(value);
+            } else if (type === 'metric') {
+                // Scroll to metric
+                const statCards = document.querySelectorAll('.stat-card');
+                statCards.forEach(card => {
+                    if (card.textContent.includes(item.querySelector('strong').textContent)) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        card.focus();
+                        announce(`Navigated to ${item.querySelector('strong').textContent}`);
+                    }
+                });
+            }
+
+            // Close search
+            document.getElementById('searchResults').classList.remove('active');
+            document.getElementById('searchInput').value = '';
+        }
+
+        function highlightDomain(domain) {
+            // Highlight domain in all charts
+            Object.keys(chartInstances).forEach(chartId => {
+                const chart = chartInstances[chartId];
+                if (chart && chart.data && chart.data.datasets) {
+                    chart.data.datasets.forEach(dataset => {
+                        if (dataset.label && dataset.label.toLowerCase().includes(domain.toLowerCase())) {
+                            dataset.borderWidth = 4;
+                            dataset.borderColor = '#1a1a1a';
+                        } else {
+                            dataset.borderWidth = 2;
+                        }
+                    });
+                    chart.update();
+                }
+            });
+
+            announce(`Highlighted ${domain} in all charts`);
+        }
+
+        // Chart zoom functionality
+        function zoomChart(chartId, factor) {
+            const chart = chartInstances[chartId];
+            if (!chart) return;
+
+            const currentMax = chart.options.scales.y.max || 100;
+            const currentMin = chart.options.scales.y.min || 0;
+
+            chart.options.scales.y.max = currentMax * factor;
+            chart.options.scales.y.min = currentMin * factor;
+
+            chart.update();
+            announce(`Chart ${factor > 1 ? 'zoomed in' : 'zoomed out'}`);
+        }
+
+        // Initialize dashboard with performance optimizations
+        function initDashboard() {
+            showLoading('Initializing dashboard...');
+
+            // Start performance monitoring
+            const perfMonitor = new PerformanceMonitor();
+
+            if (!analyticsData) {
+                hideLoading();
+                document.body.innerHTML = '<div class="no-data"><h2>No analytics data available</h2><p>Run /save or /stats to generate analytics data</p></div>';
+                return;
+            }
+
+            // Update timestamp
+            document.getElementById('lastUpdated').textContent =
+                `Last updated: ${new Date(analyticsData.metadata.generated_at).toLocaleString()}`;
+
+            // Update summary stats
+            updateSummaryStats();
+
+            // Initialize search
+            initSearch();
+
+            // Create charts with optimizations
+            setTimeout(() => {
+                showLoading('Creating retention chart...');
+                createRetentionChart();
+            }, 100);
+
+            setTimeout(() => {
+                showLoading('Creating velocity chart...');
+                createVelocityChart();
+            }, 200);
+
+            setTimeout(() => {
+                showLoading('Creating adherence chart...');
+                createAdherenceChart();
+            }, 300);
+
+            setTimeout(() => {
+                showLoading('Creating time distribution chart...');
+                createTimeDistributionChart();
+            }, 400);
+
+            setTimeout(() => {
+                showLoading('Creating activity heatmap...');
+                createActivityHeatmap();
+                hideLoading();
+                announce('Dashboard loaded successfully');
+            }, 500);
+
+            // Keyboard navigation
+            setupKeyboardNavigation();
+
+            // Cleanup on unload
+            window.addEventListener('beforeunload', () => {
+                perfMonitor.destroy();
+                Object.values(chartInstances).forEach(chart => chart.destroy());
+            });
+        }
+
+        function setupKeyboardNavigation() {
+            // Allow keyboard navigation between cards
+            const cards = document.querySelectorAll('.stat-card, .chart-card');
+            cards.forEach((card, index) => {
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowRight' && index < cards.length - 1) {
+                        cards[index + 1].focus();
+                    } else if (e.key === 'ArrowLeft' && index > 0) {
+                        cards[index - 1].focus();
+                    } else if (e.key === 'Enter' || e.key === ' ') {
+                        // Expand or interact with card
+                        card.click();
+                    }
+                });
+            });
+        }
+
+        function updateSummaryStats() {
+            const summary = analyticsData.summary || {};
+
+            const updateStat = (id, value, suffix = '') => {
+                const element = document.getElementById(id);
+                element.textContent = value + suffix;
+                announce(`${id.replace('Value', '')}: ${value}${suffix}`);
+            };
+
+            updateStat('streakValue', summary.current_streak || 0);
+            updateStat('conceptsValue', summary.total_concepts || 0);
+            updateStat('adherenceValue', summary.review_adherence ? Math.round(summary.review_adherence) : 0, '%');
+
+            const velocity = summary.avg_velocity;
+            updateStat('velocityValue', (velocity === undefined || velocity === null) ? 'Building' : velocity.toFixed(1));
+        }
+
+        function createRetentionChart() {
+            const ctx = document.getElementById('retentionChart');
+            if (!ctx) return;
+
+            // Destroy existing chart to prevent memory leak
+            if (chartInstances.retentionChart) {
+                chartInstances.retentionChart.destroy();
+            }
+
+            const retentionByDomain = analyticsData.retention_by_domain || {};
+
+            // Convert domain retention curves to chart data
+            const domains = Object.entries(retentionByDomain)
+                .map(([domain, data]) => ({
+                    label: domain,
+                    data: data.curve ? data.curve.map(d => d.retention) : [],
+                    conceptCount: data.conceptCount || 0
+                }));
+
+            if (domains.length === 0) {
+                ctx.parentElement.innerHTML = '<div class="no-data">No retention data available yet. Review some concepts to see retention curves.</div>';
+                return;
+            }
+
+            const colors = ['#1a1a1a', '#4b5563', '#6b7280', '#9ca3af', '#374151', '#111827'];
+            chartInstances.retentionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 31}, (_, i) => `Day ${i}`),
+                    datasets: domains.map((domain, idx) => ({
+                        label: `${domain.label} (${domain.conceptCount} concepts)`,
+                        data: domain.data,
+                        borderColor: colors[idx % colors.length],
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 16,
+                                font: { size: 11, family: 'Inter' },
+                                color: '#6b7280'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1a1a',
+                            padding: 12,
+                            bodyFont: { size: 12, family: 'Inter' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: '#f3f4f6', drawBorder: false },
+                            ticks: { font: { size: 11 }, color: '#9ca3af' },
+                            title: { display: true, text: 'Retention %', font: { size: 11 }, color: '#6b7280' }
+                        },
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { font: { size: 11 }, color: '#9ca3af' }
+                        }
+                    },
+                    animation: {
+                        onComplete: () => announce('Retention chart loaded')
+                    }
+                }
+            });
+        }
+
+        function createVelocityChart() {
+            const ctx = document.getElementById('velocityChart');
+            if (!ctx) return;
+
+            // Destroy existing chart
+            if (chartInstances.velocityChart) {
+                chartInstances.velocityChart.destroy();
+            }
+
+            const velocityByDomain = analyticsData.velocity_by_domain || {};
+
+            const domains = Object.entries(velocityByDomain)
+                .map(([domain, data]) => ({
+                    domain: domain,
+                    velocity: data.velocity || 0,
+                    reviews: data.reviewsCompleted || 0,
+                    hours: data.hoursInvested || 0
+                }));
+
+            if (domains.length === 0) {
+                ctx.parentElement.innerHTML = '<div class="no-data">No velocity data yet. Complete learning sessions to track velocity.</div>';
+                return;
+            }
+
+            chartInstances.velocityChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: domains.map(d => d.domain),
+                    datasets: [{
+                        label: 'Reviews/Hour',
+                        data: domains.map(d => d.velocity),
+                        backgroundColor: '#1a1a1a',
+                        borderColor: 'transparent',
+                        borderWidth: 0,
+                        borderRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1a1a',
+                            padding: 12,
+                            bodyFont: { size: 12, family: 'Inter' },
+                            callbacks: {
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const d = domains[idx];
+                                    return [
+                                        `Velocity: ${d.velocity.toFixed(2)} reviews/hour`,
+                                        `Reviews: ${d.reviews}`,
+                                        `Hours: ${d.hours.toFixed(1)}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f3f4f6', drawBorder: false },
+                            ticks: { font: { size: 11 }, color: '#9ca3af' },
+                            title: { display: true, text: 'Reviews per Hour', font: { size: 11 }, color: '#6b7280' }
+                        },
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { font: { size: 11 }, color: '#9ca3af' }
+                        }
+                    },
+                    animation: {
+                        onComplete: () => announce('Velocity chart loaded')
+                    }
+                }
+            });
+        }
+
+        function createAdherenceChart() {
+            const ctx = document.getElementById('adherenceChart');
+            if (!ctx) return;
+
+            // Destroy existing chart
+            if (chartInstances.adherenceChart) {
+                chartInstances.adherenceChart.destroy();
+            }
+
+            const adherenceByDomain = analyticsData.adherence_by_domain || {};
+
+            const domains = Object.entries(adherenceByDomain)
+                .map(([domain, data]) => ({
+                    domain: data.domainName || domain,
+                    rate: data.adherence || 0,
+                    dueReviews: data.totalDue || 0,
+                    completedReviews: data.onTime || 0
+                }));
+
+            if (domains.length === 0) {
+                ctx.parentElement.innerHTML = '<div class="no-data">No review data yet. Reviews will appear here once scheduled.</div>';
+                return;
+            }
+
+            chartInstances.adherenceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: domains.map(d => d.domain),
+                    datasets: [{
+                        label: 'Adherence Rate (%)',
+                        data: domains.map(d => d.rate),
+                        backgroundColor: '#4b5563',
+                        borderColor: 'transparent',
+                        borderWidth: 0,
+                        borderRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1a1a1a',
+                            padding: 12,
+                            bodyFont: { size: 12, family: 'Inter' },
+                            callbacks: {
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const d = domains[idx];
+                                    return [
+                                        `Adherence: ${d.rate.toFixed(1)}%`,
+                                        `Completed: ${d.completedReviews}`,
+                                        `Due: ${d.dueReviews}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: '#f3f4f6', drawBorder: false },
+                            ticks: { font: { size: 11 }, color: '#9ca3af' },
+                            title: { display: true, text: 'Adherence %', font: { size: 11 }, color: '#6b7280' }
+                        },
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { font: { size: 11 }, color: '#9ca3af' }
+                        }
+                    },
+                    animation: {
+                        onComplete: () => announce('Adherence chart loaded')
+                    }
+                }
+            });
+        }
+
+        function createTimeDistributionChart() {
+            const ctx = document.getElementById('timeChart');
+            if (!ctx) return;
+
+            // Destroy existing chart
+            if (chartInstances.timeChart) {
+                chartInstances.timeChart.destroy();
+            }
+
+            const time = analyticsData.time_distribution || {};
+            const domains = time.byDomain || {};
+
+            const entries = Object.entries(domains);
+            if (entries.length === 0) {
+                ctx.parentElement.innerHTML = '<div class="no-data">No time data yet. Learning sessions will appear here.</div>';
+                return;
+            }
+
+            const pieColors = ['#1a1a1a', '#374151', '#4b5563', '#6b7280', '#9ca3af', '#d1d5db'];
+            chartInstances.timeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: entries.map(([domain]) => domain),
+                    datasets: [{
+                        data: entries.map(([, hours]) => hours),
+                        backgroundColor: entries.map((_, idx) => pieColors[idx % pieColors.length]),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 16,
+                                font: { size: 11, family: 'Inter' },
+                                color: '#6b7280'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: `Total: ${time.totalHours || 0} hours`,
+                            font: { size: 12, family: 'Inter', weight: 400 },
+                            color: '#6b7280',
+                            padding: { bottom: 20 }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1a1a',
+                            padding: 12,
+                            bodyFont: { size: 12, family: 'Inter' }
+                        }
+                    },
+                    animation: {
+                        onComplete: () => announce('Time distribution chart loaded')
+                    }
+                }
+            });
+        }
+
+        function createActivityHeatmap() {
+            const ctx = document.getElementById('heatmapChart');
+            if (!ctx) return;
+
+            // Destroy existing chart
+            if (chartInstances.heatmapChart) {
+                chartInstances.heatmapChart.destroy();
+            }
+
+            const streak = analyticsData.streak_tracking || {};
+
+            const currentStreak = streak.currentStreak || 0;
+            const longestStreak = streak.longestStreak || 0;
+            const totalActiveDays = streak.totalActiveDays || 0;
+            const lastActivity = streak.lastActivity || 'Never';
+
+            if (totalActiveDays === 0) {
+                ctx.parentElement.innerHTML = '<div class="no-data">No activity tracked yet. Start learning to see your streak!</div>';
+                return;
+            }
+
+            chartInstances.heatmapChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Current Streak', 'Longest Streak', 'Total Active Days'],
+                    datasets: [{
+                        label: 'Days',
+                        data: [currentStreak, longestStreak, totalActiveDays],
+                        backgroundColor: ['#1a1a1a', '#4b5563', '#6b7280'],
+                        borderColor: 'transparent',
+                        borderWidth: 0,
+                        borderRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: `Last Activity: ${lastActivity}`,
+                            font: { size: 12, family: 'Inter', weight: 400 },
+                            color: '#6b7280',
+                            padding: { bottom: 20 }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1a1a',
+                            padding: 12,
+                            bodyFont: { size: 12, family: 'Inter' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f3f4f6', drawBorder: false },
+                            ticks: { font: { size: 11 }, color: '#9ca3af' },
+                            title: { display: true, text: 'Days', font: { size: 11 }, color: '#6b7280' }
+                        },
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { font: { size: 11 }, color: '#9ca3af' }
+                        }
+                    },
+                    animation: {
+                        onComplete: () => announce('Activity heatmap loaded')
+                    }
+                }
+            });
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', initDashboard);
+
+        // Handle visibility change for performance
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Pause animations when tab is hidden
+                Object.values(chartInstances).forEach(chart => {
+                    if (chart.options && chart.options.animation) {
+                        chart.options.animation.duration = 0;
+                    }
+                });
+            } else {
+                // Resume animations
+                Object.values(chartInstances).forEach(chart => {
+                    if (chart.options && chart.options.animation) {
+                        chart.options.animation.duration = 1000;
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
